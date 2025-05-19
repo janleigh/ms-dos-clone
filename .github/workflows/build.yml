@@ -1,0 +1,61 @@
+name: Build ISO
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:  # Allows manual triggering from GitHub UI
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-multilib g++-multilib nasm make grub-common xorriso grub-pc-bin mtools
+      
+    - name: Build iso
+      run: make iso
+    
+    - name: Upload ISO as artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: ms-dos-clone-iso
+        path: ms-dos-clone.iso
+        retention-days: 7
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Download ISO artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: ms-dos-clone-iso
+    
+    - name: Get version from constants.c
+      id: get-version
+      run: |
+        VERSION=$(cat src/utils/constants.c | grep 'VERSION =' | cut -d '"' -f 2)
+        echo "VERSION=$VERSION" >> $GITHUB_ENV
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: ISO v${{ env.VERSION }}
+        tag_name: v${{ env.VERSION }}
+        files: ms-dos-clone.iso
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        fail_on_unmatched_files: true

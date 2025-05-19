@@ -2,7 +2,7 @@
 
 const char* VERSION = "0.1.1";
 const char* COPYRIGHT = "(c) Jan Leigh Munoz and Victor Alexander Ong";
-const char* LICENSE = "Licensed under MIT License";
+const char* LICENSE = "Licensed under MIT License.";
 
 const char* DEFAULT_README_CONTENT = 
     "This is a simple MS-DOS Clone.\r\n"
