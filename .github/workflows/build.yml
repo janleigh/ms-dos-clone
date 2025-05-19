@@ -13,7 +13,7 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       
     - name: Install dependencies
       run: |
@@ -59,3 +59,5 @@ jobs:
         prerelease: false
         generate_release_notes: true
         fail_on_unmatched_files: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
