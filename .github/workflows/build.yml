@@ -28,6 +28,7 @@ jobs:
         mkdir -p obj/shell
         mkdir -p obj/utils
         mkdir -p iso/boot/grub
+        mkdir -p bin
     
     - name: Build iso
       run: make iso
@@ -56,7 +57,7 @@ jobs:
     - name: Get version from constants.c
       id: get-version
       run: |
-        VERSION=$(cat src/utils/constants.c | grep 'VERSION =' | cut -d '"' -f 2)
+        VERSION=$(cat src/utils/constants.c | grep 'const char\* VERSION' | cut -d '"' -f 2)
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         echo "version=$VERSION" >> $GITHUB_OUTPUT
     
