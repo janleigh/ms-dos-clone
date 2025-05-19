@@ -53,15 +53,15 @@ char keyboard_scancode_to_ascii(unsigned char scancode) {
     if (extended_key) {
         extended_key = 0;
         
-        // Handle extended keys (arrow keys)
+        // Handle arrow keys
         switch (scancode) {
-            case 0x48: // Up arrow
+            case 0x48:
                 return KEY_UP;
-            case 0x50: // Down arrow
+            case 0x50:
                 return KEY_DOWN;
-            case 0x4B: // Left arrow
+            case 0x4B:
                 return KEY_LEFT;
-            case 0x4D: // Right arrow
+            case 0x4D:
                 return KEY_RIGHT;
             default:
                 return 0;
@@ -107,16 +107,17 @@ char keyboard_scancode_to_ascii(unsigned char scancode) {
 
 // Helper function to clear the current input line
 void clear_input_line(void) {
-    // Move cursor to beginning of the line
-    vga_cursor_x = 3;  // After "C:> "
+    int prompt_length = 2 + strlen(fs_current_dir) + 1;
     
-    // Erase the current line
+    vga_cursor_x = prompt_length;
+    
+    int start_x = vga_cursor_x;
+    
     for (int i = 0; i < buffer_position; i++) {
         vga_putchar(' ');
     }
     
-    // Reset cursor position
-    vga_cursor_x = 3;
+    vga_cursor_x = start_x;
     vga_update_cursor();
 }
 
@@ -125,59 +126,63 @@ void keyboard_handler(void) {
     if (keyboard_is_key_available()) {
         unsigned char scancode = keyboard_get_scancode();
         
-        // Only process a scancode if it's different from the last one
-        // This prevents repeated processing of the same key
-        if (scancode != last_scancode || (scancode & 0x80)) {
-            last_scancode = scancode;
-            
-            char key = keyboard_scancode_to_ascii(scancode);
-            
-            if (key) {
-                // Handle special keys
-                if (key == KEY_UP) {
-                    // Navigate up through command history
-                    navigate_history(-1);
-                }
-                else if (key == KEY_DOWN) {
-                    // Navigate down through command history
-                    navigate_history(1);
-                }
-                else if (key == KEY_TAB) {
-                    // Handle tab completion
-                    handle_tab_completion();
-                }
-                // Handle backspace
-                else if (key == '\b') {
-                    if (buffer_position > 0) {
-                        buffer_position--;
-                        vga_cursor_x--;
-                        if (vga_cursor_x < 0) {
-                            vga_cursor_x = VGA_WIDTH - 1;
-                            vga_cursor_y--;
-                        }
-                        const int index = vga_cursor_y * VGA_WIDTH + vga_cursor_x;
-                        vga_buffer[index] = vga_entry(' ', vga_color);
-                        vga_update_cursor();
+        // Store scancode for debugging if needed
+        last_scancode = scancode;
+        
+        // Extended key sequence starts with 0xE0
+        if (scancode == 0xE0) {
+            extended_key = 1;
+            return; // Wait for the next scancode
+        }
+        
+        char key = keyboard_scancode_to_ascii(scancode);
+        
+        // Only process key press events (not key release)
+        if (key && !(scancode & 0x80)) {
+            // Handle special keys
+            if (key == KEY_UP) {
+                // Navigate up through command history
+                navigate_history(-1);
+            }
+            else if (key == KEY_DOWN) {
+                // Navigate down through command history
+                navigate_history(1);
+            }
+            else if (key == KEY_TAB) {
+                // Handle tab completion
+                handle_tab_completion();
+            }
+            // Handle backspace
+            else if (key == '\b') {
+                if (buffer_position > 0) {
+                    buffer_position--;
+                    vga_cursor_x--;
+                    if (vga_cursor_x < 0) {
+                        vga_cursor_x = VGA_WIDTH - 1;
+                        vga_cursor_y--;
                     }
+                    const int index = vga_cursor_y * VGA_WIDTH + vga_cursor_x;
+                    vga_buffer[index] = vga_entry(' ', vga_color);
+                    vga_update_cursor();
                 }
-                // Handle enter key
-                else if (key == '\n') {
-                    input_buffer[buffer_position] = '\0';
-                    
-                    // Add command to history if it's not empty
-                    if (buffer_position > 0) {
-                        add_to_history(input_buffer);
-                    }
-                    
-                    process_command();
-                    buffer_position = 0;
-                    history_position = -1;
+            }
+            // Handle enter key
+            else if (key == '\n') {
+                input_buffer[buffer_position] = '\0';
+                
+                // Add command to history if it's not empty
+                if (buffer_position > 0) {
+                    add_to_history(input_buffer);
                 }
-                // Handle regular characters
-                else if (buffer_position < MAX_COMMAND_LENGTH - 1) {
-                    input_buffer[buffer_position++] = key;
-                    vga_putchar(key);
-                }
+                
+                process_command();
+                buffer_position = 0;
+                history_position = -1;
+            }
+            // Handle regular characters
+            else if (buffer_position < MAX_COMMAND_LENGTH - 1) {
+                input_buffer[buffer_position++] = key;
+                vga_putchar(key);
             }
         }
     }

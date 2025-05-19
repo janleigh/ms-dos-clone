@@ -93,9 +93,9 @@ void cmd_dir(void) {
         int name_start;
         
         if (is_root) {
-            name_start = 1;  // Skip initial backslash
+            name_start = 1;
         } else {
-            name_start = current_path_len + 1;  // Skip current path and backslash
+            name_start = current_path_len + 1;
         }
         
         strcpy(name_only, &fs_files[i].name[name_start]);
@@ -143,11 +143,29 @@ void cmd_dir(void) {
 }
 
 void cmd_type(const char* filename) {
-    fs_file_t* file = fs_find(filename);
+    // Create a full path if filename is relative
+    char full_path[FS_MAX_FILENAME];
+    
+    // Check if it's an absolute path
+    if (filename[0] == '\\') {
+        strcpy(full_path, filename);
+    } else {
+        if (strcmp(fs_current_dir, "\\") == 0) {
+            strcpy(full_path, "\\");
+            strcat(full_path, filename);
+        } else {
+            strcpy(full_path, fs_current_dir);
+            strcat(full_path, "\\");
+            strcat(full_path, filename);
+        }
+    }
+    
+    // Find using the full path
+    fs_file_t* file = fs_find(full_path);
     
     if (!file) {
         vga_print("File not found: ");
-        vga_println(filename);
+        vga_println(full_path);
         return;
     }
     
@@ -365,7 +383,6 @@ void cmd_echo(const char* text) {
     int i = 0;
     while (text[i] != '\0') {
         if (text[i] == '\\' && text[i+1] != '\0') {
-            // Handle escape sequences
             switch (text[i+1]) {
                 case 'n':
                     vga_putchar('\n');
@@ -380,7 +397,6 @@ void cmd_echo(const char* text) {
                     vga_putchar('\\');
                     break;
                 default:
-                    // If not a recognized escape, output both characters
                     vga_putchar(text[i]);
                     vga_putchar(text[i+1]);
                     break;
@@ -388,12 +404,10 @@ void cmd_echo(const char* text) {
             // Skip the second character of the escape sequence
             i += 2;
         } else {
-            // Just output the character
             vga_putchar(text[i]);
             i++;
         }
     }
     
-    // Add a newline at the end
     vga_putchar('\n');
 }

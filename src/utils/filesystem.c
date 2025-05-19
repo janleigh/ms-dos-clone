@@ -9,24 +9,17 @@ void fs_init(void) {
     fs_file_count = 0;
     strcpy(fs_current_dir, "\\");
     
-    // Create root directory
     fs_create_directory("\\");
-    
-    // Create system directory
     fs_create_directory("\\SYSTEM");
-    
-    // Create some subdirectories
     fs_create_directory("\\DOCUMENTS");
     fs_create_directory("\\PICTURES");
     fs_create_directory("\\MUSIC");
     fs_create_directory("\\VIDEOS");
     
-    // Create some files
     fs_create_file("\\README.TXT", "This is a simple MS-DOS Clone.\r\nCreated by Jan Leigh Munoz and Victor Alexander Ong.\r\n");
     fs_create_file("\\VERSION.TXT", "MS-DOS Clone v0.1.0\r\n");
     fs_create_file("\\LICENSE.TXT", "MIT License\r\n\r\n(c) Jan Leigh Munoz and Victor Alexander Ong.\r\n");
     
-    // Create files in different directories
     fs_create_file("\\SYSTEM\\CONFIG.SYS", "# System Configuration\r\nFILES=20\r\nBUFFERS=10\r\n");
 }
 

@@ -13,7 +13,6 @@ char command_history[COMMAND_HISTORY_SIZE][MAX_COMMAND_LENGTH];
 int history_count = 0;
 int history_position = -1;
 
-// Function prototypes
 void kernel_main();
 void process_command();
 void parse_args(char* input, char* command, char* arg1, char* arg2);
@@ -27,21 +26,17 @@ void kernel_main() {
     
     // Clear screen with direct buffer access
     for (int i = 0; i < 80 * 25; i++) {
-        vga_buffer[i] = 0x0720; // Space with light gray on black
+        vga_buffer[i] = 0x0720;
     }
-
-    // Init VGA driver
+    
+    // Init display, keyboard and filesystem drivers.
     vga_init();
-    
-    // Init keyboard driver
     keyboard_init();
-    
-    // Init filesystem driver
     fs_init();
     
     // Print welcome message
     vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);    
-    vga_println("MS-DOS Clone [Version 0.1.0]");
+    vga_println("MS-DOS Clone [Version 0.1.1]");
     vga_println("(c) Jan Leigh Munoz and Victor Alexander Ong. Licensed under MIT License.");
     vga_println("");
     
@@ -53,11 +48,10 @@ void kernel_main() {
     // Show prompt with current directory
     vga_print("C:");
     vga_print(fs_current_dir);
-    vga_print("> ");
-    
+    vga_print(">");
+
     // Main loop
     while (1) {
-        // Poll for keyboard input
         keyboard_handler();
     }
 }
@@ -138,104 +132,96 @@ void handle_tab_completion() {
     char dummy[64];
     parse_args(input_buffer, command, partial_arg, dummy);
     
-    // Only try to complete if we have a partial argument and it's for a file-based command
-    if (partial_arg[0] != '\0' &&
-        (strcmp(command, "type") == 0 || strcmp(command, "cat") == 0 ||
-            strcmp(command, "del") == 0 || strcmp(command, "delete") == 0 ||
-            strcmp(command, "copy") == 0 || strcmp(command, "cp") == 0 ||
-            strcmp(command, "rename") == 0 || strcmp(command, "ren") == 0 ||
-            strcmp(command, "move") == 0 || strcmp(command, "mv") == 0)) {
-        
-        // Try to find matching files
-        char* match = NULL;
-        int matches = 0;
-        
-        for (int i = 0; i < fs_file_count; i++) {
-            // Skip directories for file operations
-            if (fs_files[i].type == FS_DIRECTORY) {
-                continue;
-            }
-            
-            // Check if file name starts with the partial argument
-            int j = 0;
-            while (partial_arg[j] != '\0' && fs_files[i].name[j] != '\0' && 
-                (partial_arg[j] == fs_files[i].name[j] || 
-                    (partial_arg[j] >= 'a' && partial_arg[j] <= 'z' && 
-                        partial_arg[j] - 32 == fs_files[i].name[j]) ||
-                    (partial_arg[j] >= 'A' && partial_arg[j] <= 'Z' && 
-                        partial_arg[j] + 32 == fs_files[i].name[j]))) {
-                j++;
-            }
-            
-            // If we reached the end of the partial argument, we have a match
-            if (partial_arg[j] == '\0') {
-                match = fs_files[i].name;
-                matches++;
+    // Only try to complete if we have a partial argument
+    if (partial_arg[0] != '\0') {
+        // Convert command to lowercase for comparison
+        for (int i = 0; command[i]; i++) {
+            if (command[i] >= 'A' && command[i] <= 'Z') {
+                command[i] = command[i] + 32;
             }
         }
         
-        // If there's exactly one match, complete it
-        if (matches == 1) {
+        // Prepare full path for completion if needed
+        char full_path[FS_MAX_FILENAME];
+        full_path[0] = '\0';
+        
+        // If it's a relative path (doesn't start with '\')
+        if (partial_arg[0] != '\\') {
+            // Construct full path from current directory
+            if (strcmp(fs_current_dir, "\\") == 0) {
+                strcpy(full_path, "\\");
+                strcat(full_path, partial_arg);
+            } else {
+                strcpy(full_path, fs_current_dir);
+                strcat(full_path, "\\");
+                strcat(full_path, partial_arg);
+            }
+        } else {
+            // Already an absolute path
+            strcpy(full_path, partial_arg);
+        }
+        
+        // Try to find matching files/directories
+        char* best_match = NULL;
+        int match_count = 0;
+        
+        for (int i = 0; i < fs_file_count; i++) {
+            int type_match = 1;
+            
+            // Filter by type for certain commands
+            if (strcmp(command, "type") == 0 || strcmp(command, "cat") == 0 ||
+                strcmp(command, "del") == 0 || strcmp(command, "delete") == 0) {
+                type_match = (fs_files[i].type == FS_FILE);
+            } else if (strcmp(command, "cd") == 0 || strcmp(command, "chdir") == 0 ||
+                        strcmp(command, "mkdir") == 0 || strcmp(command, "md") == 0) {
+                type_match = (fs_files[i].type == FS_DIRECTORY);
+            }
+            
+            if (!type_match) continue;
+            
+            // Check if this file/dir path starts with our partial path
+            if (strncmp(fs_files[i].name, full_path, strlen(full_path)) == 0) {
+                match_count++;
+                if (!best_match) {
+                    best_match = fs_files[i].name;
+                }
+            }
+        }
+        
+        // If we found exactly one match, complete it
+        if (match_count == 1 && best_match) {
             // Clear the current command line
             clear_input_line();
             
-            // Reconstruct the command with the completed filename
+            // Extract just the filename without the path
+            char* filename = best_match;
+            char* last_slash = NULL;
+            
+            // Find the last backslash
+            for (int i = 0; best_match[i]; i++) {
+                if (best_match[i] == '\\') {
+                    last_slash = &best_match[i];
+                }
+            }
+            
+            if (last_slash) {
+                filename = last_slash + 1;
+            }
+            
+            // Reconstruct the command
             strcpy(input_buffer, command);
             strcat(input_buffer, " ");
-            strcat(input_buffer, match);
-            buffer_position = strlen(input_buffer);
             
-            // Display the updated command
-            vga_print(input_buffer);
-        }
-        // If there are multiple matches, we could show possibilities
-        // but I ain't doing that, fuck you
-        else if (matches > 1) {
-            
-        }
-    }
-    // Directory completion for cd/mkdir
-    else if (partial_arg[0] != '\0' &&
-            (strcmp(command, "cd") == 0 || strcmp(command, "chdir") == 0 ||
-                strcmp(command, "mkdir") == 0 || strcmp(command, "md") == 0)) {
-        
-        // Try to find matching directories
-        char* match = NULL;
-        int matches = 0;
-        
-        for (int i = 0; i < fs_file_count; i++) {
-            // Skip files for directory operations
-            if (fs_files[i].type != FS_DIRECTORY) {
-                continue;
+            // Use relative path if in current dir, otherwise absolute
+            if (strncmp(best_match, fs_current_dir, strlen(fs_current_dir)) == 0) {
+                strcat(input_buffer, filename);
+            } else {
+                strcat(input_buffer, best_match);
             }
             
-            // Check if directory name starts with the partial argument
-            int j = 0;
-            while (partial_arg[j] != '\0' && fs_files[i].name[j] != '\0' && 
-                    (partial_arg[j] == fs_files[i].name[j] || 
-                        (partial_arg[j] >= 'a' && partial_arg[j] <= 'z' && 
-                            partial_arg[j] - 32 == fs_files[i].name[j]) ||
-                        (partial_arg[j] >= 'A' && partial_arg[j] <= 'Z' && 
-                            partial_arg[j] + 32 == fs_files[i].name[j]))) {
-                j++;
-            }
-            
-            // If we reached the end of the partial argument, we have a match
-            if (partial_arg[j] == '\0') {
-                match = fs_files[i].name;
-                matches++;
-            }
-        }
-        
-        // If there's exactly one match, complete it
-        if (matches == 1) {
-            // Clear the current command line
-            clear_input_line();
-            
-            // Reconstruct the command with the completed directory name
-            strcpy(input_buffer, command);
+            // Add a space after the filename for better usability
             strcat(input_buffer, " ");
-            strcat(input_buffer, match);
+            
             buffer_position = strlen(input_buffer);
             
             // Display the updated command
@@ -303,7 +289,7 @@ void process_command() {
         // Show prompt and return
         vga_print("C:");
         vga_print(fs_current_dir);
-        vga_print("> ");
+        vga_print(">");  // Removed space after '>'
         return;
     }
     
@@ -324,7 +310,7 @@ void process_command() {
         // Show prompt and return
         vga_print("C:");
         vga_print(fs_current_dir);
-        vga_print("> ");
+        vga_print(">");
         return;
     }
     
@@ -394,9 +380,8 @@ void process_command() {
         vga_println(command);
     }
     
-    // Reset buffer and show new prompt with current directory
     buffer_position = 0;
     vga_print("C:");
     vga_print(fs_current_dir);
-    vga_print("> ");
+    vga_print(">");
 }
