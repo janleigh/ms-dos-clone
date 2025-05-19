@@ -5,6 +5,7 @@
 #include "kernel.h"
 #include "filesystem.h"
 #include "types.h"
+#include "constants.h"
 
 char input_buffer[MAX_COMMAND_LENGTH];
 int buffer_position = 0;
@@ -36,8 +37,12 @@ void kernel_main() {
     
     // Print welcome message
     vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);    
-    vga_println("MS-DOS Clone [Version 0.1.1]");
-    vga_println("(c) Jan Leigh Munoz and Victor Alexander Ong. Licensed under MIT License.");
+    vga_print("MS-DOS Clone [Version ");
+    vga_print(VERSION);
+    vga_println("]");
+    vga_print(COPYRIGHT);
+    vga_print(". ");
+    vga_println(LICENSE);
     vga_println("");
     
     // Initialize command history
@@ -46,7 +51,7 @@ void kernel_main() {
     }
     
     // Show prompt with current directory
-    vga_print("C:");
+    vga_print(PROMPT_PREFIX);
     vga_print(fs_current_dir);
     vga_print(">");
 
@@ -287,7 +292,7 @@ void process_command() {
     // Check if the command is empty
     if (input_buffer[0] == '\0') {
         // Show prompt and return
-        vga_print("C:");
+        vga_print(PROMPT_PREFIX);
         vga_print(fs_current_dir);
         vga_print(">");  // Removed space after '>'
         return;
@@ -308,7 +313,7 @@ void process_command() {
         }
         
         // Show prompt and return
-        vga_print("C:");
+        vga_print(PROMPT_PREFIX);
         vga_print(fs_current_dir);
         vga_print(">");
         return;
@@ -381,7 +386,7 @@ void process_command() {
     }
     
     buffer_position = 0;
-    vga_print("C:");
+    vga_print(PROMPT_PREFIX);
     vga_print(fs_current_dir);
     vga_print(">");
 }

@@ -3,10 +3,15 @@
 #include "filesystem.h"
 #include "string.h"
 #include "keyboard.h"
+#include "constants.h"
 
 void cmd_version(void) {
-    vga_println("MS-DOS Clone [Version 0.1.0]");
-    vga_println("(c) Jan Leigh Munoz and Victor Alexander Ong. Licensed under MIT License.");
+    vga_print("MS-DOS Clone [Version ");
+    vga_print(VERSION);
+    vga_println("]");
+    vga_print(COPYRIGHT);
+    vga_print(". ");
+    vga_println(LICENSE);
 }
 
 void cmd_help(void) {
