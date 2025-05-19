@@ -19,7 +19,16 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y gcc-multilib g++-multilib nasm make grub-common xorriso grub-pc-bin mtools
-      
+    
+    - name: Create necessary directories
+      run: |
+        mkdir -p obj/core
+        mkdir -p obj/boot
+        mkdir -p obj/drivers
+        mkdir -p obj/shell
+        mkdir -p obj/utils
+        mkdir -p iso/boot/grub
+    
     - name: Build iso
       run: make iso
     
@@ -36,6 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
     - name: Download ISO artifact
       uses: actions/download-artifact@v4
       with:
@@ -52,7 +64,7 @@ jobs:
       id: create_release
       uses: softprops/action-gh-release@v1
       with:
-        name: ISO v${{ env.VERSION }}
+        name: MS-DOS Clone v${{ env.VERSION }}
         tag_name: v${{ env.VERSION }}
         files: ms-dos-clone.iso
         draft: false
