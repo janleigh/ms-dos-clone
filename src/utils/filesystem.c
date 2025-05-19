@@ -80,6 +80,23 @@ int fs_create_directory(const char* name) {
         return 0;
     }
     
+    // If it's not the root directory, check if parent directory exists
+    if (strcmp(name, "\\") != 0) {
+        char parent_dir[FS_MAX_FILENAME];
+        get_parent_dir(name, parent_dir);
+        
+        // If parent_dir is empty, that's an error
+        if (parent_dir[0] == '\0') {
+            return 0;
+        }
+        
+        // Find the parent directory
+        fs_file_t* parent = fs_find(parent_dir);
+        if (!parent || parent->type != FS_DIRECTORY) {
+            return 0;  // Parent directory doesn't exist
+        }
+    }
+    
     strcpy(fs_files[fs_file_count].name, name);
     fs_files[fs_file_count].type = FS_DIRECTORY;
     fs_files[fs_file_count].size = 0;

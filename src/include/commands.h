@@ -10,8 +10,11 @@ void cmd_rename(const char* oldname, const char* newname);
 void cmd_move(const char* source, const char* dest);
 void cmd_del(const char* filename);
 void cmd_mkdir(const char* dirname);
+void cmd_rmdir(const char* dirname);
 void cmd_cd(const char* dirname);
-void cmd_color(void);
+void cmd_colortest(void);
 void cmd_echo(const char* text);
+void cmd_touch(const char* filename);
+void cmd_rm(const char* filename);
 
 #endif

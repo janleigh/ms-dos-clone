@@ -376,10 +376,28 @@ void process_command() {
         } else {
             cmd_mkdir(arg1);
         }
+    } else if (strcmp(command, "rmdir") == 0 || strcmp(command, "rd") == 0) {
+        if (arg1[0] == '\0') {
+            vga_println("Syntax: RMDIR <dirname>");
+        } else {
+            cmd_rmdir(arg1);
+        }
+    } else if (strcmp(command, "touch") == 0) {
+        if (arg1[0] == '\0') {
+            vga_println("Syntax: TOUCH <filename>");
+        } else {
+            cmd_touch(arg1);
+        }
+    } else if (strcmp(command, "rm") == 0) {
+        if (arg1[0] == '\0') {
+            vga_println("Syntax: RM <filename>");
+        } else {
+            cmd_rm(arg1);
+        }
     } else if (strcmp(command, "cd") == 0 || strcmp(command, "chdir") == 0) {
         cmd_cd(arg1);
-    } else if (strcmp(command, "color") == 0) {
-        cmd_color();
+    } else if (strcmp(command, "colortest") == 0) {
+        cmd_colortest();
     } else if (strlen(command) > 0) {
         vga_print("Bad command or file name: ");
         vga_println(command);

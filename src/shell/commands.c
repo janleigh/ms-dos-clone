@@ -16,18 +16,21 @@ void cmd_version(void) {
 
 void cmd_help(void) {
     vga_println("Available commands:");
+    vga_println("CAT       - Displays the contents of a file");
     vga_println("CD        - Changes the current directory");
     vga_println("CLS       - Clears the screen");
-    vga_println("COLOR     - Displays a color test");
+    vga_println("COLORTEST - Displays a color test");
     vga_println("COPY      - Copies a file");
     vga_println("DEL       - Deletes a file");
     vga_println("DIR       - Lists files and directories");
     vga_println("ECHO      - Displays messages or toggles command echoing");
     vga_println("HELP      - Shows this help message");
     vga_println("MKDIR     - Creates a directory");
+    vga_println("RMDIR     - Removes a directory");
     vga_println("MOVE      - Moves a file");
     vga_println("REN       - Renames a file");
-    vga_println("TYPE      - Displays the contents of a file");
+    vga_println("RM        - Removes a file (alias for DEL)");
+    vga_println("TOUCH     - Creates an empty file");
     vga_println("VER       - Shows version information");
 }
 
@@ -228,7 +231,24 @@ void cmd_del(const char* filename) {
 }
 
 void cmd_mkdir(const char* dirname) {
-    if (!fs_create_directory(dirname)) {
+    // Create a full path if dirname is relative
+    char full_path[FS_MAX_FILENAME];
+    
+    // Check if it's an absolute path
+    if (dirname[0] == '\\') {
+        strcpy(full_path, dirname);
+    } else {
+        if (strcmp(fs_current_dir, "\\") == 0) {
+            strcpy(full_path, "\\");
+            strcat(full_path, dirname);
+        } else {
+            strcpy(full_path, fs_current_dir);
+            strcat(full_path, "\\");
+            strcat(full_path, dirname);
+        }
+    }
+    
+    if (!fs_create_directory(full_path)) {
         vga_println("Failed to create directory");
         return;
     }
@@ -311,63 +331,6 @@ void cmd_cd(const char* dirname) {
     strcpy(fs_current_dir, target_path);
 }
 
-void cmd_color(void) {
-    // Save the original color
-    unsigned char original_color = vga_color;
-    
-    vga_println("VGA Color Test:");
-    vga_println("---------------");
-    vga_println("");
-    
-    // Display text samples for all 16 foreground colors on black background
-    vga_println("Foreground colors (on black background):");
-    for (int fg = 0; fg < 16; fg++) {
-        vga_set_color(fg, VGA_COLOR_BLACK);
-        vga_print("Color ");
-        
-        char num[3];
-        itoa(fg, num, 10);
-        vga_print(num);
-        vga_print(": ");
-        
-        vga_println("This is a color test sample text.");
-    }
-    
-    vga_println("");
-    
-    // Display text samples for all 16 background colors with white text
-    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
-    vga_println("Background colors (with white text):");
-    for (int bg = 0; bg < 16; bg++) {
-        vga_set_color(VGA_COLOR_WHITE, bg);
-        vga_print("Color ");
-        
-        char num[3];
-        itoa(bg, num, 10);
-        vga_print(num);
-        vga_print(": ");
-        
-        vga_println("This is a color test sample text.");
-    }
-    
-    vga_println("");
-    
-    // Color name table
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
-    vga_println("Color index reference:");
-    vga_println("0 = BLACK        8 = DARK_GREY");
-    vga_println("1 = BLUE         9 = LIGHT_BLUE");
-    vga_println("2 = GREEN       10 = LIGHT_GREEN");
-    vga_println("3 = CYAN        11 = LIGHT_CYAN");
-    vga_println("4 = RED         12 = LIGHT_RED");
-    vga_println("5 = MAGENTA     13 = LIGHT_MAGENTA");
-    vga_println("6 = BROWN       14 = LIGHT_BROWN");
-    vga_println("7 = LIGHT_GREY  15 = WHITE");
-    
-    // Restore the original color
-    vga_color = original_color;
-}
-
 void cmd_echo(const char* text) {
     // If no text or empty string, just print a blank line
     if (!text || text[0] == '\0') {
@@ -415,4 +378,151 @@ void cmd_echo(const char* text) {
     }
     
     vga_putchar('\n');
+}
+
+void cmd_rmdir(const char* dirname) {
+    // Create a full path if dirname is relative
+    char full_path[FS_MAX_FILENAME];
+    
+    // Check if it's an absolute path
+    if (dirname[0] == '\\') {
+        strcpy(full_path, dirname);
+    } else {
+        if (strcmp(fs_current_dir, "\\") == 0) {
+            strcpy(full_path, "\\");
+            strcat(full_path, dirname);
+        } else {
+            strcpy(full_path, fs_current_dir);
+            strcat(full_path, "\\");
+            strcat(full_path, dirname);
+        }
+    }
+    
+    // Find the directory
+    fs_file_t* dir = fs_find(full_path);
+    
+    // Check if directory exists
+    if (!dir) {
+        vga_print("Directory not found: ");
+        vga_println(dirname);
+        return;
+    }
+    
+    // Verify it is a directory
+    if (dir->type != FS_DIRECTORY) {
+        vga_println("Not a directory");
+        return;
+    }
+    
+    // Check if it's the root directory (can't delete root)
+    if (strcmp(full_path, "\\") == 0) {
+        vga_println("Cannot remove root directory");
+        return;
+    }
+    
+    // Check if it's not empty (has files or subdirectories)
+    int path_len = strlen(full_path);
+    for (int i = 0; i < fs_file_count; i++) {
+        // Skip the directory itself
+        if (strcmp(fs_files[i].name, full_path) == 0) {
+            continue;
+        }
+        
+        // Check if any file or directory is inside this directory
+        if (strncmp(fs_files[i].name, full_path, path_len) == 0 && 
+            fs_files[i].name[path_len] == '\\') {
+            vga_println("Directory not empty");
+            return;
+        }
+    }
+    
+    // Delete the directory
+    if (!fs_delete(full_path)) {
+        vga_println("Failed to remove directory");
+        return;
+    }
+    
+    // If we deleted the current directory, go up one level
+    if (strcmp(fs_current_dir, full_path) == 0) {
+        // Find the parent directory
+        int last_slash = -1;
+        
+        for (int i = strlen(fs_current_dir) - 1; i >= 0; i--) {
+            if (fs_current_dir[i] == '\\') {
+                last_slash = i;
+                break;
+            }
+        }
+        
+        if (last_slash > 0) {
+            fs_current_dir[last_slash] = '\0';  // Truncate at last slash
+        } else {
+            strcpy(fs_current_dir, "\\");  // Go to root
+        }
+    }
+}
+
+void cmd_colortest(void) {
+    // Save the original color
+    unsigned char original_color = vga_color;
+    
+    // First row - standard colors
+    for (int bg = 0; bg < 8; bg++) {
+        vga_set_color(VGA_COLOR_BLACK, bg);
+        vga_print("   ");
+    }
+    vga_println("");
+    
+    // Second row - bright colors
+    for (int bg = 8; bg < 16; bg++) {
+        vga_set_color(VGA_COLOR_BLACK, bg);
+        vga_print("   ");
+    }
+    vga_println("");
+    
+    // Restore the original color
+    vga_color = original_color;
+}
+
+void cmd_touch(const char* filename) {
+    // Create a full path if filename is relative
+    char full_path[FS_MAX_FILENAME];
+    
+    // Check if it's an absolute path
+    if (filename[0] == '\\') {
+        strcpy(full_path, filename);
+    } else {
+        if (strcmp(fs_current_dir, "\\") == 0) {
+            strcpy(full_path, "\\");
+            strcat(full_path, filename);
+        } else {
+            strcpy(full_path, fs_current_dir);
+            strcat(full_path, "\\");
+            strcat(full_path, filename);
+        }
+    }
+    
+    // Check if file already exists
+    fs_file_t* existing_file = fs_find(full_path);
+    if (existing_file) {
+        // File already exists - in real touch this would update timestamp
+        // Here we'll just report that it exists
+        vga_println("File already exists");
+        return;
+    }
+    
+    // Create an empty file
+    if (!fs_create_file(full_path, "")) {
+        vga_println("Failed to create file");
+        return;
+    }
+    
+    // Success message
+    vga_print("Created empty file: ");
+    vga_println(filename);
+}
+
+void cmd_rm(const char* filename) {
+    // This is just an alias for cmd_del
+    cmd_del(filename);
 }
