@@ -36,14 +36,26 @@ void kernel_main() {
     fs_init();
     
     // Print welcome message
-    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);    
-    vga_print("MS-DOS Clone [Version ");
+    vga_println("");
+    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    vga_print("Welcome to ");
+    
+    vga_set_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    vga_print("OSteoporosis");
+    
+    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    vga_print(" [Version ");
     vga_print(VERSION);
     vga_println("]");
-    vga_print(COPYRIGHT);
-    vga_print(". ");
-    vga_println(LICENSE);
     vga_println("");
+    
+    vga_print("To see the list of available commands, type ");
+    
+    vga_set_color(VGA_COLOR_LIGHT_BLUE, VGA_COLOR_BLACK);
+    vga_print("HELP");
+    
+    vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    vga_println(".");
     
     // Initialize command history
     for (int i = 0; i < COMMAND_HISTORY_SIZE; i++) {

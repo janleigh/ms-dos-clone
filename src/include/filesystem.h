@@ -3,7 +3,7 @@
 
 #define FS_MAX_FILES 64
 #define FS_MAX_FILENAME 32
-#define FS_MAX_CONTENT 4096  // 4kb max size
+#define FS_MAX_CONTENT 4096 
 
 // File type flags
 #define FS_FILE 0x01
@@ -29,5 +29,6 @@ int fs_copy(const char* source, const char* dest);
 int fs_move(const char* source, const char* dest);
 fs_file_t* fs_find(const char* name);
 void fs_list_directory(void);
+void get_parent_dir(const char* path, char* parent);
 
 #endif

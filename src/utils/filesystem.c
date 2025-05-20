@@ -1,5 +1,6 @@
 #include "filesystem.h"
 #include "string.h"
+#include "constants.h"
 
 fs_file_t fs_files[FS_MAX_FILES];
 int fs_file_count = 0;
@@ -16,11 +17,9 @@ void fs_init(void) {
     fs_create_directory("\\MUSIC");
     fs_create_directory("\\VIDEOS");
     
-    fs_create_file("\\README.TXT", "This is a simple MS-DOS Clone.\r\nCreated by Jan Leigh Munoz and Victor Alexander Ong.\r\n");
-    fs_create_file("\\VERSION.TXT", "MS-DOS Clone v0.1.0\r\n");
-    fs_create_file("\\LICENSE.TXT", "MIT License\r\n\r\n(c) Jan Leigh Munoz and Victor Alexander Ong.\r\n");
-    
-    fs_create_file("\\SYSTEM\\CONFIG.SYS", "# System Configuration\r\nFILES=20\r\nBUFFERS=10\r\n");
+    fs_create_file("\\README.TXT", DEFAULT_README_CONTENT);
+    fs_create_file("\\VERSION.TXT", DEFAULT_VERSION_CONTENT);
+    fs_create_file("\\LICENSE.TXT", DEFAULT_LICENSE_CONTENT);
 }
 
 // New helper function to find parent directory path

@@ -429,7 +429,8 @@ void cmd_rmdir(const char* dirname) {
         }
         
         // Check if any file or directory is inside this directory
-        if (strncmp(fs_files[i].name, full_path, path_len) == 0 && 
+        if (strlen(fs_files[i].name) > path_len && 
+            strncmp(fs_files[i].name, full_path, path_len) == 0 && 
             fs_files[i].name[path_len] == '\\') {
             vga_println("Directory not empty");
             return;
@@ -445,17 +446,11 @@ void cmd_rmdir(const char* dirname) {
     // If we deleted the current directory, go up one level
     if (strcmp(fs_current_dir, full_path) == 0) {
         // Find the parent directory
-        int last_slash = -1;
+        char parent_dir[FS_MAX_FILENAME];
+        get_parent_dir(fs_current_dir, parent_dir);
         
-        for (int i = strlen(fs_current_dir) - 1; i >= 0; i--) {
-            if (fs_current_dir[i] == '\\') {
-                last_slash = i;
-                break;
-            }
-        }
-        
-        if (last_slash > 0) {
-            fs_current_dir[last_slash] = '\0';  // Truncate at last slash
+        if (parent_dir[0] != '\0') {
+            strcpy(fs_current_dir, parent_dir);
         } else {
             strcpy(fs_current_dir, "\\");  // Go to root
         }
