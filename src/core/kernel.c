@@ -351,7 +351,11 @@ void process_command() {
     } else if (strcmp(command, "help") == 0) {
         cmd_help();
     } else if (strcmp(command, "dir") == 0 || strcmp(command, "ls") == 0) {
-        cmd_dir();
+        if (arg1[0] == '\0') {
+            cmd_dir();
+        } else {
+            cmd_dir_path(arg1);
+        }
     } else if (strcmp(command, "type") == 0 || strcmp(command, "cat") == 0) {
         if (arg1[0] == '\0') {
             vga_println("Syntax: TYPE <filename>");

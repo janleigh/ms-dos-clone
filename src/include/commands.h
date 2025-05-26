@@ -4,6 +4,7 @@
 void cmd_version(void);
 void cmd_help(void);
 void cmd_dir(void);
+void cmd_dir_path(const char* path);
 void cmd_type(const char* filename);
 void cmd_copy(const char* source, const char* dest);
 void cmd_rename(const char* oldname, const char* newname);

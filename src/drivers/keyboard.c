@@ -72,14 +72,18 @@ char keyboard_scancode_to_ascii(unsigned char scancode) {
     if (scancode == 0x2A || scancode == 0x36) {  // Left or right shift pressed
         shift_pressed = 1;
         return 0;
-    } else if (scancode == 0xAA || scancode == 0xB6) {  // Left or right shift released
-        shift_pressed = 0;
+    } else if ((scancode & 0x7F) == 0x2A || (scancode & 0x7F) == 0x36) {  // Shift key released (bit 7 set)
+        if (scancode & 0x80) {  // Make sure it's a release event
+            shift_pressed = 0;
+        }
         return 0;
     } else if (scancode == 0x1D) {  // Left control pressed
         ctrl_pressed = 1;
         return 0;
-    } else if (scancode == 0x9D) {  // Left control released
-        ctrl_pressed = 0;
+    } else if ((scancode & 0x7F) == 0x1D) {  // Control key released
+        if (scancode & 0x80) {  // Make sure it's a release event
+            ctrl_pressed = 0;
+        }
         return 0;
     }
     

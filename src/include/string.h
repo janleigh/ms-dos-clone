@@ -10,6 +10,7 @@ int strcmp(const char* s1, const char* s2);
 int strncmp(const char* s1, const char* s2, size_t n);
 void itoa(int value, char* str, int base);
 char* strchr(const char* s, int c);
+char* strrchr(const char* s, int c);
 void strtok(char* str, const char* delim, char** saveptr, char** token);
 
 #endif

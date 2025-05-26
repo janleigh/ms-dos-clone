@@ -5,8 +5,24 @@
 #include "keyboard.h"
 #include "constants.h"
 
+
+void resolve_path(const char* path, char* full_path) {
+    if (path[0] == '\\') {
+        strcpy(full_path, path);
+    } else {
+        if (strcmp(fs_current_dir, "\\") == 0) {
+            strcpy(full_path, "\\");
+            strcat(full_path, path);
+        } else {
+            strcpy(full_path, fs_current_dir);
+            strcat(full_path, "\\");
+            strcat(full_path, path);
+        }
+    }
+}
+
 void cmd_version(void) {
-    vga_print("MS-DOS Clone [Version ");
+    vga_print("OSteoporosis [Version ");
     vga_print(VERSION);
     vga_println("]");
     vga_print(COPYRIGHT);
@@ -26,26 +42,48 @@ void cmd_help(void) {
     vga_println("ECHO      - Displays messages or toggles command echoing");
     vga_println("HELP      - Shows this help message");
     vga_println("MKDIR     - Creates a directory");
-    vga_println("RMDIR     - Removes a directory");
     vga_println("MOVE      - Moves a file");
     vga_println("REN       - Renames a file");
     vga_println("RM        - Removes a file (alias for DEL)");
+    vga_println("RMDIR     - Removes a directory");
     vga_println("TOUCH     - Creates an empty file");
     vga_println("VER       - Shows version information");
 }
 
-void cmd_dir(void) {
+void cmd_dir_path(const char* path) {
+    char target_path[FS_MAX_FILENAME];
+    int is_root;
+    
+    if (path && path[0] != '\0') {
+        resolve_path(path, target_path);
+        
+        fs_file_t* dir = fs_find(target_path);
+        if (!dir) {
+            vga_print("Directory not found: ");
+            vga_println(path);
+            return;
+        }
+        
+        if (dir->type != FS_DIRECTORY) {
+            vga_println("Not a directory");
+            return;
+        }
+        
+        is_root = (strcmp(target_path, "\\") == 0);
+    } else {
+        strcpy(target_path, fs_current_dir);
+        is_root = (strcmp(fs_current_dir, "\\") == 0);
+    }
+    
     vga_print(" Directory of C:");
-    vga_println(fs_current_dir);
+    vga_println(target_path);
     vga_println("");
     
     int file_count = 0;
     int dir_count = 0;
     unsigned int total_size = 0;
-    int current_path_len = strlen(fs_current_dir);
-    int is_root = (strcmp(fs_current_dir, "\\") == 0);
+    int target_path_len = strlen(target_path);
     
-    // Always show parent directory if not in root
     if (!is_root) {
         vga_print("<DIR>          ");
         vga_println("..");
@@ -53,18 +91,14 @@ void cmd_dir(void) {
     }
     
     for (int i = 0; i < fs_file_count; i++) {
-        // Skip files that are not in the current directory
         if (strcmp(fs_files[i].name, "\\") == 0) {
-            // Skip root entry
             continue;
         }
         
-        // Check if this file/directory is directly in the current directory
         int file_path_len = strlen(fs_files[i].name);
-        int is_in_current_dir = 0;
+        int is_in_target_dir = 0;
         
         if (is_root) {
-            // For root directory, check if there's only one backslash at position 0
             int backslash_count = 0;
             for (int j = 0; j < file_path_len; j++) {
                 if (fs_files[i].name[j] == '\\') {
@@ -72,43 +106,38 @@ void cmd_dir(void) {
                 }
             }
             
-            is_in_current_dir = (backslash_count == 1 && fs_files[i].name[0] == '\\');
+            is_in_target_dir = (backslash_count == 1 && fs_files[i].name[0] == '\\');
         } else {
-            // Check if file's path starts with current path + backslash
-            // and doesn't have any more backslashes after that
-            if (file_path_len > current_path_len && 
-                strncmp(fs_files[i].name, fs_current_dir, current_path_len) == 0 &&
-                fs_files[i].name[current_path_len] == '\\') {
+            if (file_path_len > target_path_len && 
+                strncmp(fs_files[i].name, target_path, target_path_len) == 0 &&
+                fs_files[i].name[target_path_len] == '\\') {
                 
-                // Check for additional backslashes
                 int additional_backslashes = 0;
-                for (int j = current_path_len + 1; j < file_path_len; j++) {
+                for (int j = target_path_len + 1; j < file_path_len; j++) {
                     if (fs_files[i].name[j] == '\\') {
                         additional_backslashes++;
                     }
                 }
                 
-                is_in_current_dir = (additional_backslashes == 0);
+                is_in_target_dir = (additional_backslashes == 0);
             }
         }
         
-        if (!is_in_current_dir) {
+        if (!is_in_target_dir) {
             continue;
         }
         
-        // Extract just the filename/dirname from the full path
         char name_only[FS_MAX_FILENAME];
         int name_start;
         
         if (is_root) {
             name_start = 1;
         } else {
-            name_start = current_path_len + 1;
+            name_start = target_path_len + 1;
         }
         
         strcpy(name_only, &fs_files[i].name[name_start]);
         
-        // Print the file or directory details
         if (fs_files[i].type == FS_DIRECTORY) {
             vga_print("<DIR>          ");
             vga_println(name_only);
@@ -150,25 +179,14 @@ void cmd_dir(void) {
     vga_println(" Dir(s)");
 }
 
+void cmd_dir(void) {
+    cmd_dir_path("");
+}
+
 void cmd_type(const char* filename) {
-    // Create a full path if filename is relative
     char full_path[FS_MAX_FILENAME];
+    resolve_path(filename, full_path);
     
-    // Check if it's an absolute path
-    if (filename[0] == '\\') {
-        strcpy(full_path, filename);
-    } else {
-        if (strcmp(fs_current_dir, "\\") == 0) {
-            strcpy(full_path, "\\");
-            strcat(full_path, filename);
-        } else {
-            strcpy(full_path, fs_current_dir);
-            strcat(full_path, "\\");
-            strcat(full_path, filename);
-        }
-    }
-    
-    // Find using the full path
     fs_file_t* file = fs_find(full_path);
     
     if (!file) {
@@ -186,32 +204,163 @@ void cmd_type(const char* filename) {
 }
 
 void cmd_copy(const char* source, const char* dest) {
-    if (!fs_copy(source, dest)) {
-        vga_println("Copy failed");
-        return;
+    char source_full_path[FS_MAX_FILENAME];
+    resolve_path(source, source_full_path);
+    
+    char dest_full_path[FS_MAX_FILENAME];
+    if (strcmp(dest, "..") == 0) {
+        char parent_dir[FS_MAX_FILENAME];
+        get_parent_dir(fs_current_dir, parent_dir);
+        
+        char source_filename[FS_MAX_FILENAME];
+        const char* last_slash = strrchr(source_full_path, '\\');
+        if (last_slash) {
+            strcpy(source_filename, last_slash + 1);
+        } else {
+            strcpy(source_filename, source_full_path);
+        }
+        
+        if (strcmp(parent_dir, "\\") == 0) {
+            strcpy(dest_full_path, "\\");
+            strcat(dest_full_path, source_filename);
+        } else {
+            strcpy(dest_full_path, parent_dir);
+            strcat(dest_full_path, "\\");
+            strcat(dest_full_path, source_filename);
+        }
+    } else {
+        resolve_path(dest, dest_full_path);
+    }
+    
+    fs_file_t* dest_file = fs_find(dest_full_path);
+    if (dest_file && dest_file->type == FS_DIRECTORY) {
+        char source_filename[FS_MAX_FILENAME];
+        const char* last_slash = strrchr(source_full_path, '\\');
+        if (last_slash) {
+            strcpy(source_filename, last_slash + 1);
+        } else {
+            strcpy(source_filename, source_full_path);
+        }
+        
+        char new_dest_path[FS_MAX_FILENAME];
+        strcpy(new_dest_path, dest_full_path);
+        
+        if (dest_full_path[strlen(dest_full_path) - 1] != '\\') {
+            strcat(new_dest_path, "\\");
+        }
+        
+        strcat(new_dest_path, source_filename);
+        
+        if (!fs_copy(source_full_path, new_dest_path)) {
+            vga_println("Copy failed");
+            return;
+        }
+    } else {
+        if (!fs_copy(source_full_path, dest_full_path)) {
+            vga_println("Copy failed");
+            return;
+        }
     }
     
     vga_println("        1 file(s) copied");
 }
 
 void cmd_rename(const char* oldname, const char* newname) {
-    if (!fs_rename(oldname, newname)) {
+    if (strcmp(newname, "..") == 0) {
+        vga_println("Invalid destination name");
+        return;
+    }
+
+    char old_full_path[FS_MAX_FILENAME];
+    resolve_path(oldname, old_full_path);
+    
+    char new_full_path[FS_MAX_FILENAME];
+    if (strcmp(newname, "..") == 0) {
+        char parent_dir[FS_MAX_FILENAME];
+        get_parent_dir(fs_current_dir, parent_dir);
+        
+        char filename[FS_MAX_FILENAME];
+        const char* last_slash = strrchr(old_full_path, '\\');
+        if (last_slash) {
+            strcpy(filename, last_slash + 1);
+        } else {
+            strcpy(filename, old_full_path);
+        }
+        
+        if (strcmp(parent_dir, "\\") == 0) {
+            strcpy(new_full_path, "\\");
+            strcat(new_full_path, filename);
+        } else {
+            strcpy(new_full_path, parent_dir);
+            strcat(new_full_path, "\\");
+            strcat(new_full_path, filename);
+        }
+    } else {
+        resolve_path(newname, new_full_path);
+    }
+    
+    if (!fs_rename(old_full_path, new_full_path)) {
         vga_println("Rename failed");
         return;
     }
 }
 
 void cmd_move(const char* source, const char* dest) {
-    if (!fs_move(source, dest)) {
-        vga_println("Move failed");
-        return;
+    char source_full_path[FS_MAX_FILENAME];
+    resolve_path(source, source_full_path);
+    
+    char dest_full_path[FS_MAX_FILENAME];
+    if (strcmp(dest, "..") == 0) {
+        char parent_dir[FS_MAX_FILENAME];
+        get_parent_dir(fs_current_dir, parent_dir);
+        
+        if (parent_dir[0] == '\0') {
+            strcpy(dest_full_path, "\\");
+        } else {
+            strcpy(dest_full_path, parent_dir);
+        }
+    } else {
+        resolve_path(dest, dest_full_path);
+    }
+    
+    fs_file_t* dest_file = fs_find(dest_full_path);
+    if (dest_file && dest_file->type == FS_DIRECTORY) {
+        char source_filename[FS_MAX_FILENAME];
+        const char* last_slash = strrchr(source_full_path, '\\');
+        if (last_slash) {
+            strcpy(source_filename, last_slash + 1);
+        } else {
+            strcpy(source_filename, source_full_path);
+        }
+        
+        char new_dest_path[FS_MAX_FILENAME];
+        strcpy(new_dest_path, dest_full_path);
+        
+        if (dest_full_path[strlen(dest_full_path) - 1] != '\\') {
+            strcat(new_dest_path, "\\");
+        }
+        
+        strcat(new_dest_path, source_filename);
+        
+        if (!fs_move(source_full_path, new_dest_path)) {
+            vga_println("Move failed");
+            return;
+        }
+    } else {
+        if (!fs_move(source_full_path, dest_full_path)) {
+            vga_println("Move failed");
+            return;
+        }
     }
     
     vga_println("        1 file(s) moved");
 }
 
 void cmd_del(const char* filename) {
-    fs_file_t* file = fs_find(filename);
+    char full_path[FS_MAX_FILENAME];
+    resolve_path(filename, full_path);
+    
+    fs_file_t* file = fs_find(full_path);
     
     if (!file) {
         vga_print("File not found: ");
@@ -224,29 +373,15 @@ void cmd_del(const char* filename) {
         return;
     }
     
-    if (!fs_delete(filename)) {
+    if (!fs_delete(full_path)) {
         vga_println("Delete failed");
         return;
     }
 }
 
 void cmd_mkdir(const char* dirname) {
-    // Create a full path if dirname is relative
     char full_path[FS_MAX_FILENAME];
-    
-    // Check if it's an absolute path
-    if (dirname[0] == '\\') {
-        strcpy(full_path, dirname);
-    } else {
-        if (strcmp(fs_current_dir, "\\") == 0) {
-            strcpy(full_path, "\\");
-            strcat(full_path, dirname);
-        } else {
-            strcpy(full_path, fs_current_dir);
-            strcat(full_path, "\\");
-            strcat(full_path, dirname);
-        }
-    }
+    resolve_path(dirname, full_path);
     
     if (!fs_create_directory(full_path)) {
         vga_println("Failed to create directory");
@@ -381,27 +516,11 @@ void cmd_echo(const char* text) {
 }
 
 void cmd_rmdir(const char* dirname) {
-    // Create a full path if dirname is relative
     char full_path[FS_MAX_FILENAME];
+    resolve_path(dirname, full_path);
     
-    // Check if it's an absolute path
-    if (dirname[0] == '\\') {
-        strcpy(full_path, dirname);
-    } else {
-        if (strcmp(fs_current_dir, "\\") == 0) {
-            strcpy(full_path, "\\");
-            strcat(full_path, dirname);
-        } else {
-            strcpy(full_path, fs_current_dir);
-            strcat(full_path, "\\");
-            strcat(full_path, dirname);
-        }
-    }
-    
-    // Find the directory
     fs_file_t* dir = fs_find(full_path);
     
-    // Check if directory exists
     if (!dir) {
         vga_print("Directory not found: ");
         vga_println(dirname);
@@ -480,44 +599,24 @@ void cmd_colortest(void) {
 }
 
 void cmd_touch(const char* filename) {
-    // Create a full path if filename is relative
     char full_path[FS_MAX_FILENAME];
+    resolve_path(filename, full_path);
     
-    // Check if it's an absolute path
-    if (filename[0] == '\\') {
-        strcpy(full_path, filename);
-    } else {
-        if (strcmp(fs_current_dir, "\\") == 0) {
-            strcpy(full_path, "\\");
-            strcat(full_path, filename);
-        } else {
-            strcpy(full_path, fs_current_dir);
-            strcat(full_path, "\\");
-            strcat(full_path, filename);
-        }
-    }
-    
-    // Check if file already exists
     fs_file_t* existing_file = fs_find(full_path);
     if (existing_file) {
-        // File already exists - in real touch this would update timestamp
-        // Here we'll just report that it exists
         vga_println("File already exists");
         return;
     }
     
-    // Create an empty file
     if (!fs_create_file(full_path, "")) {
         vga_println("Failed to create file");
         return;
     }
     
-    // Success message
     vga_print("Created empty file: ");
     vga_println(filename);
 }
 
 void cmd_rm(const char* filename) {
-    // This is just an alias for cmd_del
     cmd_del(filename);
 }

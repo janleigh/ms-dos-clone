@@ -36,12 +36,10 @@ int atoi(const char* str) {
     int result = 0;
     int sign = 1;
     
-    // Skip leading whitespace
     while (*str == ' ' || *str == '\t') {
         str++;
     }
     
-    // Handle sign
     if (*str == '-') {
         sign = -1;
         str++;
@@ -49,7 +47,6 @@ int atoi(const char* str) {
         str++;
     }
     
-    // Convert digits
     while (*str >= '0' && *str <= '9') {
         result = result * 10 + (*str - '0');
         str++;
@@ -64,28 +61,23 @@ void itoa(int value, char* str, int base) {
     char* ptr;
     int sign = 0;
     
-    // Handle negative numbers only for base 10
     if (base == 10 && value < 0) {
         sign = 1;
         value = -value;
     }
     
-    // Generate digits in reverse order
     ptr = buffer;
     do {
         *ptr++ = digits[value % base];
         value /= base;
     } while (value);
     
-    // Add sign if needed
     if (sign) {
         *ptr++ = '-';
     }
     
-    // Terminate the string
     *ptr = '\0';
     
-    // Reverse the string
     ptr--;
     while (buffer < ptr) {
         char temp = *buffer;
@@ -113,17 +105,16 @@ int strncmp(const char* s1, const char* s2, size_t n) {
 char* strchr(const char* s, int c) {
     while (*s != '\0') {
         if (*s == c) {
-            return (char*)s;  // Cast away const for compatibility
+            return (char*)s;
         }
         s++;
     }
     
-    // Also check for the null terminator if c is 0
     if (c == 0) {
         return (char*)s;
     }
     
-    return NULL;  // Not found
+    return NULL;
 }
 
 size_t strspn(const char* str, const char* accept) {
@@ -171,33 +162,44 @@ char* strpbrk(const char* str, const char* accept) {
 void strtok(char* str, const char* delim, char** saveptr, char** token) {
     char* start;
     
-    // If str is NULL, continue from saveptr
     if (str == NULL) {
         str = *saveptr;
     }
     
-    // Skip leading delimiters
     str += strspn(str, delim);
     
-    // If we've reached the end, return NULL
     if (*str == '\0') {
         *saveptr = str;
         *token = NULL;
         return;
     }
     
-    // Find the end of the token
     start = str;
     str = strpbrk(str, delim);
     
     if (str == NULL) {
-        // This token finishes the string
         *saveptr = strchr(start, '\0');
     } else {
-        // Terminate the token and make saveptr point past it
         *str = '\0';
         *saveptr = str + 1;
     }
     
     *token = start;
+}
+
+char* strrchr(const char* s, int c) {
+    const char* last = NULL;
+    
+    while (*s != '\0') {
+        if (*s == c) {
+            last = s;
+        }
+        s++;
+    }
+    
+    if (c == '\0') {
+        return (char*)s;
+    }
+    
+    return (char*)last;
 }
